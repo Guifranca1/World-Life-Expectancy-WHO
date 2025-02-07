@@ -67,6 +67,8 @@ First, let's handle the duplicate rows using the following queries.
 
 There are two columns that we can use to create a 'filter' for the duplicate rows. For each 'Country,' there is a corresponding 'Year,' and if we combine these two, we have a functional filter to identify duplicate rows:
 
+</br>
+
 ```sql
 # Finding the duplicate rows
 SELECT Country, Year, CONCAT(Country, Year), COUNT(CONCAT(Country, Year))
@@ -90,6 +92,81 @@ WHERE Row_ID IN (SELECT Row_ID
                 WHERE Row_Num > 1);
 ```
 
+</br>
+
+Now we need to address the blanks in the 'Status' column.
+
+When we look at the data, we can observe that countries can be classified as 'Developed' or 'Developing.' The data is missing only for a few years, but not for all of them. To resolve this issue, we just need to check the type listed for the same country in another year.
+
+</br>
+
+```sql
+# Finding the blanks or Nulls in "Status"
+SELECT *
+FROM worldlifeexpectancy
+WHERE Status = '';
+
+# Finding how many distinct status exists
+SELECT DISTINCT(Status)
+FROM worldlifeexpectancy
+WHERE Status <> '';
+
+# Updating the column with the missing values for Developing Countries
+UPDATE worldlifeexpectancy a
+JOIN worldlifeexpectancy b
+  ON a.Country = b.Country
+SET a.Status = 'Developing'
+WHERE a.Status = ''
+AND b.Status <> ''
+AND b.Status = 'Developing';
+
+# Updating the column with the missing values for Developed Countries
+UPDATE worldlifeexpectancy a
+JOIN worldlifeexpectancy b
+  ON a.Country = b.Country
+SET a.Status = 'Developed'
+WHERE a.Status = ''
+AND b.Status <> ''
+AND b.Status = 'Developed';
+``` 
+
+</br>
+
+Now we just need to find a solution for the missing values in the 'Life Expectancy' column.
+
+It appears that for the missing values, the countries have been improving life expectancy each year. Therefore, we could assume the average value between the year before and after the missing data to fill in the 'Life Expectancy' column.
+
+</br>
+
+```sql
+# Finding the Countries that "Life Expectancy" column is blank
+SELECT *
+FROM worldlifeexpectancy
+WHERE `Life Expectancy` = '';
+
+# Finding the average value for "Life Expectancy"
+SELECT a.`Life Expectancy`,  b.`Life Expectancy`, c.`Life Expectancy`,
+ROUND((b.`Life Expectancy` + c.`Life Expectancy`)/2, 1) AS avg_life_expectancy
+FROM worldlifeexpectancy a
+JOIN worldlifeexpectancy b
+  ON a.Country = b.Country
+  AND a.Year = b.Year - 1
+JOIN worldlifeexpectancy c
+  ON a.Country = c.Country
+  AND a.Year = c.Year + 1
+WHERE a.`Life Expectancy` = '';
+
+# Updating the "Life Expectancy" column with the new values
+UPDATE worldlifeexpectancy a
+JOIN worldlifeexpectancy b
+  ON a.Country = b.Country
+  AND a.Year = b.Year - 1
+JOIN worldlifeexpectancy c
+  ON a.Country = c.Country
+  AND a.Year = c.Year + 1
+SET a.`Life Expectancy` = ROUND((b.`Life Expectancy` + c.`Life Expectancy`)/2, 1)
+WHERE a.`Life Expectancy` = '';
+```
 
 </br>
 
